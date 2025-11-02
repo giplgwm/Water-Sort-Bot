@@ -45,4 +45,4 @@ def has_devices():
 if __name__ == "__main__":
     while(not has_devices()):
         time.sleep(5)
-    capture_screen().save("lvl8.png")
+    capture_screen().save("art/lvl10.png")

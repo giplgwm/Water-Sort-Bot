@@ -21,7 +21,7 @@ def find_tubes(image_path):
     
     detected_tubes = []
     
-    print(f"Total contours found: {len(contours)}\n")
+    # print(f"Total contours found: {len(contours)}\n")
     
     for i, contour in enumerate(contours):
         # Get bounding box
@@ -42,12 +42,12 @@ def find_tubes(image_path):
             total_pixels = w * h
             fill_percentage = (white_pixels / total_pixels) * 100
             
-            print(f"✓ TUBE FOUND:")
-            print(f"  Position: ({x}, {y})")
-            print(f"  Size: {w} x {h} pixels")
-            print(f"  Aspect ratio: {aspect_ratio:.2f}")
-            print(f"  Fill: {fill_percentage:.1f}% white")
-            print()
+            # print(f"✓ TUBE FOUND:")
+            # print(f"  Position: ({x}, {y})")
+            # print(f"  Size: {w} x {h} pixels")
+            # print(f"  Aspect ratio: {aspect_ratio:.2f}")
+            # print(f"  Fill: {fill_percentage:.1f}% white")
+            # print()
             
             detected_tubes.append({
                 'x': x,
@@ -99,17 +99,17 @@ if __name__ == "__main__":
     
     print(f"=== Found {len(tubes)} tubes ===\n")
     
-    for i, tube in enumerate(tubes):
-        print(f"Tube {i+1}:")
-        print(f"  Position: ({tube['x']}, {tube['y']})")
-        print(f"  Size: {tube['width']}x{tube['height']}")
-        print(f"  Top center: {tube['top_center']}")
-        print()
+    # for i, tube in enumerate(tubes):
+    #     print(f"Tube {i+1}:")
+    #     print(f"  Position: ({tube['x']}, {tube['y']})")
+    #     print(f"  Size: {tube['width']}x{tube['height']}")
+    #     print(f"  Top center: {tube['top_center']}")
+    #     print()
     
     # Visualize and save results
-    if len(tubes) > 0:
-        result = visualize_tubes(original_img, tubes, 'detected_tubes.jpg')
-        print("Result saved to 'detected_tubes.jpg'")
+    # if len(tubes) > 0:
+    #     result = visualize_tubes(original_img, tubes, 'detected_tubes.jpg')
+    #     print("Result saved to 'detected_tubes.jpg'")
     
     # Save binary image
     cv2.imwrite('binary.jpg', binary_img)
