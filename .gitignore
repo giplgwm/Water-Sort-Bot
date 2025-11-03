@@ -13,7 +13,5 @@ wheels/
 .venv
 
 #project-specific
-*.png
-art/
 *.jpg
 *.mp4
