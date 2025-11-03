@@ -10,8 +10,8 @@
 
 -[x] Be able to solve the puzzle from a screenshot (output a correct sequence of moves for us to do based on initial state of the puzzle)
 
-    -[x] Determine colors and order of liquids inside each tube
+-[x] Determine colors and order of liquids inside each tube
 
-    -[x] Find a set of moves that will put each alike color together in their own respective tubes
-    
+-[x] Find a set of moves that will put each alike color together in their own respective tubes
+
 -[ ] ~~Exit ads~~ // I paid the 4.99 to remove ads to avoid this and earn more points on fetch 
