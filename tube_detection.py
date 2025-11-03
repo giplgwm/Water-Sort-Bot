@@ -1,14 +1,14 @@
 import cv2
 import numpy as np
 
-def find_tubes(image_path):
+def find_tubes(image):
     """
     Find test tubes in the image - they are vertical rectangles (151x544 pixels).
     """
     # Read the image
-    img = cv2.imread(image_path)
+    img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
     if img is None:
-        raise ValueError(f"Could not read image: {image_path}")
+        raise ValueError(f"Could not read image: {image}")
     
     # Convert to grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -29,8 +29,8 @@ def find_tubes(image_path):
         
         # Look for vertical rectangles approximately 151 wide and 544 tall
         # Allow some tolerance (±10 pixels)
-        width_ok = 140 <= w <= 165
-        height_ok = 530 <= h <= 560
+        width_ok = 110 <= w <= 165
+        height_ok = 400 <= h <= 560
         
         if width_ok and height_ok:
             # Calculate aspect ratio (should be around 0.28 for tubes)

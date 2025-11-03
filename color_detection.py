@@ -7,7 +7,7 @@ from tube_detection import find_tubes
 
 
 
-def detect_colors_in_tube(img, tube, scan_offset=70):
+def detect_colors_in_tube(img, tube, index, scan_offset=30):
     """
     Scan a vertical line in the tube at scan_offset pixels from the right border.
     Returns a list of colors found from top to bottom.
@@ -32,7 +32,7 @@ def detect_colors_in_tube(img, tube, scan_offset=70):
     
     colors_found = []
     # Scan from top to bottom of the tube
-    for scan_y in range(y + 69, y + h):
+    for scan_y in range(y + 68, y + h):
         # Get the pixel color at this position
         pixel = img[scan_y, scan_x]
         b, g, r = int(pixel[0]), int(pixel[1]), int(pixel[2])
@@ -66,10 +66,6 @@ def identify_color(r, g, b):
     if b == 255 and g == 255 and r == 255:
         return "white"
     
-    # Check for black/dark (all values low)
-    if r < 50 and g < 50 and b < 50:
-        return "black"
-    
     # Dark Blue: RGB(58, 46, 196) - very high blue, low red and green
     # B should be > 150 and much greater than R and G
     if b == 196 and g == 46 and r == 58:
@@ -99,13 +95,29 @@ def identify_color(r, g, b):
     if b == 220 and g == 156 and r == 82:
         return "lightblue"
     
+    #orange
+    if b==0 and g==100 and r == 255:
+        return "orange"
+    
+    #purple
+    if b == 146 and g == 42 and r == 114:
+        return "purple"
+    
+    #poop
+    if b==15 and g == 150 and r == 120:
+        return "poop"
+    
+    # Check for black/dark (all values low)
+    if b == 51 and g == 50 and r == 45:
+        return "black"
+    
     else:
         return "empty"
     
     return "unknown"
 
 
-def analyze_all_tubes(image_path, scan_offset=70):
+def analyze_all_tubes(image_path, scan_offset=30):
     """
     Analyze all tubes in the image and return color information.
     """
@@ -115,16 +127,16 @@ def analyze_all_tubes(image_path, scan_offset=70):
     all_tube_colors = []
     
     for i, tube in enumerate(tubes):
-        print(f"\n=== Tube {i+1} at ({tube['x']}, {tube['y']}) ===")
+        # print(f"\n=== Tube {i+1} at ({tube['x']}, {tube['y']}) ===")
         
         # Detect colors in this tube
-        colors = detect_colors_in_tube(img, tube, scan_offset)
+        colors = detect_colors_in_tube(img, tube, i, scan_offset)
         
         # Filter out very small segments (likely noise) and background/empty at top and bottom
         significant_colors = []
         for c in colors:
-            # Skip small segments (must be at least 50px tall to be a real color block)
-            if c['height'] < 10:
+            # Skip small segments (must be at least 22px tall to be a real color block)
+            if c['height'] < 22:
                 continue
             # Skip background and empty space (these are the tube walls and empty areas)
             # if c['color'] in ['background', 'empty']:
@@ -140,27 +152,11 @@ def analyze_all_tubes(image_path, scan_offset=70):
         all_tube_colors.append({
             'tube_index': i + 1,
             'tube_position': (tube['x'], tube['y']),
-            'colors': significant_colors
+            'colors': significant_colors,
+            'top_color': significant_colors[0],
+            'pour_color': significant_colors[1] if significant_colors[0]['color'] == 'empty' and len(significant_colors)>1 else significant_colors[0]
         })
     
     return all_tube_colors, img
 
 
-# Example usage
-if __name__ == "__main__":
-    image_path = "art/lvl10.png"
-    
-    # Analyze all tubes
-    all_tube_colors, img = analyze_all_tubes(image_path, scan_offset=70)
-    
-    # Get tubes for visualization
-    tubes, _, _ = find_tubes(image_path)
-    
-    # Print summary
-    print(f"\n{'='*50}")
-    print(f"SUMMARY: Analyzed {len(all_tube_colors)} tubes")
-    print(f"{'='*50}")
-    
-    for tube_data in all_tube_colors:
-        color_list = [c['color'] for c in tube_data['colors']]
-        print(f"Tube {tube_data['tube_index']}: {' → '.join(color_list)}")
