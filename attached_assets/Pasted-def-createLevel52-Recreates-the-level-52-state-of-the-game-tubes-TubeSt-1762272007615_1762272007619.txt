@@ -1,0 +1,88 @@
+def createLevel52():
+    """Recreates the level 52 state of the game"""
+    tubes = [
+        TubeState(tube_index=1,
+                  segments=[
+                      ColorSegment('red', 25),
+                      ColorSegment('blue', 25),
+                      ColorSegment('red', 25),
+                      ColorSegment('light_blue', 25)
+                  ],
+                  capacity_px=100),
+        TubeState(tube_index=2,
+                  segments=[
+                      ColorSegment('pink', 25),
+                      ColorSegment('green', 25),
+                      ColorSegment('purple', 25),
+                      ColorSegment('green', 25)
+                  ],
+                  capacity_px=100),
+        TubeState(tube_index=3,
+                  segments=[
+                      ColorSegment('poop', 25),
+                      ColorSegment('green', 50),
+                      ColorSegment('grey', 25),
+                  ],
+                  capacity_px=100),
+        TubeState(tube_index=4,
+                  segments=[
+                      ColorSegment('blue', 25),
+                      ColorSegment('pink', 25),
+                      ColorSegment('light_blue', 25),
+                      ColorSegment('grey', 25)
+                  ],
+                  capacity_px=100),
+        TubeState(tube_index=5,
+                  segments=[
+                      ColorSegment('purple', 50),
+                      ColorSegment('orange', 25),
+                      ColorSegment('pink', 25),
+                  ],
+                  capacity_px=100),
+        TubeState(tube_index=6,
+                  segments=[
+                      ColorSegment('light_blue', 25),
+                      ColorSegment('purple', 25),
+                      ColorSegment('blue', 25),
+                  ],
+                  capacity_px=100),
+        TubeState(tube_index=7,
+                  segments=[
+                      ColorSegment('orange', 50),
+                      ColorSegment('red', 25),
+                      ColorSegment('grey', 25),
+                  ],
+                  capacity_px=100),
+        TubeState(tube_index=8,
+                  segments=[
+                      ColorSegment('poop', 25),
+                      ColorSegment('pink', 25),
+                      ColorSegment('orange', 25),
+                      ColorSegment('poop', 25)
+                  ],
+                  capacity_px=100),
+        TubeState(tube_index=9,
+                  segments=[
+                      ColorSegment('poop', 25),
+                      ColorSegment('red', 25),
+                      ColorSegment('grey', 25),
+                      ColorSegment('light_blue', 25)
+                  ],
+                  capacity_px=100),
+        TubeState(tube_index=10,
+                  segments=[
+                      ColorSegment('empty', 100),
+                  ],
+                  capacity_px=100),
+        TubeState(tube_index=11,
+                  segments=[
+                      ColorSegment('empty', 100),
+                  ],
+                  capacity_px=100),
+        TubeState(tube_index=12,
+                  segments=[
+                      ColorSegment('empty', 100),
+                  ],
+                  capacity_px=100)
+    ]
+    return PuzzleState(tubes)

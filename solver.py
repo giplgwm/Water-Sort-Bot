@@ -51,12 +51,21 @@ class TubeState:
     
     @property
     def is_complete(self) -> bool:
-        """Check if tube contains only one color (or is empty)"""
+        """
+        Check if tube is complete (either empty OR filled to capacity with one color)
+        A partially filled tube with one color is NOT complete
+        """
         non_empty = [seg for seg in self.segments if seg.color != 'empty']
         if len(non_empty) == 0:
-            return True
+            return True  # Empty tube is complete
+        
         # All non-empty segments must be the same color
-        return all(seg.color == non_empty[0].color for seg in non_empty)
+        if not all(seg.color == non_empty[0].color for seg in non_empty):
+            return False
+        
+        # Must be filled to capacity
+        total_height = sum(seg.height for seg in non_empty)
+        return total_height == self.capacity_px
     
     def serialize(self) -> str:
         """Serialize tube state for hashing"""
@@ -130,6 +139,10 @@ class PuzzleState:
             
             for to_idx, to_tube in enumerate(self.tubes):
                 if from_idx == to_idx:
+                    continue
+                
+                # Skip destination tubes that are complete (can't pour into them)
+                if to_tube.is_complete and not to_tube.is_empty:
                     continue
                 
                 if can_pour(from_tube, to_tube):
@@ -249,22 +262,32 @@ def merge_consecutive_segments(segments: List[ColorSegment]) -> List[ColorSegmen
     return merged
 
 
-def solve(initial_state: PuzzleState, max_depth: int = 200) -> Optional[List[Tuple[int, int]]]:
+def solve(initial_state: PuzzleState, max_depth: int = 200, verbose: bool = False) -> Optional[List[Tuple[int, int]]]:
     """
     Solve the puzzle using backtracking DFS
     
     Args:
         initial_state: Initial puzzle state
         max_depth: Maximum recursion depth
+        verbose: Print progress information
     
     Returns:
         List of (from_idx, to_idx) tuples representing the solution, or None if unsolvable
     """
     visited: Set[str] = set()
+    states_explored = [0]  # Use list to allow modification in nested function
     
     def dfs(state: PuzzleState, depth: int, path: List[Tuple[int, int]]) -> Optional[List[Tuple[int, int]]]:
+        states_explored[0] += 1
+        
+        # Progress logging every 1000 states
+        if verbose and states_explored[0] % 1000 == 0:
+            print(f"  Explored {states_explored[0]} states, depth {depth}, visited {len(visited)} unique states")
+        
         # Check if solved
         if state.is_solved():
+            if verbose:
+                print(f"  ✓ Solution found after exploring {states_explored[0]} states!")
             return path
         
         # Check depth limit
@@ -299,42 +322,83 @@ def solve(initial_state: PuzzleState, max_depth: int = 200) -> Optional[List[Tup
         
         return None
     
-    return dfs(initial_state, 0, [])
+    if verbose:
+        print(f"Starting solver (max_depth={max_depth})...")
+    
+    result = dfs(initial_state, 0, [])
+    
+    if verbose and result is None:
+        print(f"  ❌ No solution found after exploring {states_explored[0]} states")
+    
+    return result
 
 
 def prioritize_moves(state: PuzzleState, moves: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
     """
     Prioritize moves using heuristics:
-    1. Moves to empty tubes (creates more working space)
-    2. Moves that complete a tube
-    3. Moves to same color (consolidation)
-    4. Other moves
+    1. Moves that complete a tube (best outcome)
+    2. Moves to same color (consolidation progress)
+    3. Moves from complete tubes to empty (free up space)
+    4. Other moves to empty tubes
+    5. Other moves
     """
-    priority_1 = []  # To empty tubes
-    priority_2 = []  # Completes a tube
-    priority_3 = []  # Same color consolidation
-    priority_4 = []  # Other moves
+    priority_1 = []  # Completes a tube
+    priority_2 = []  # Same color consolidation
+    priority_3 = []  # From complete to empty (frees working tube)
+    priority_4 = []  # To empty tubes
+    priority_5 = []  # Other moves
     
     for from_idx, to_idx in moves:
         to_tube = state.tubes[to_idx]
         from_tube = state.tubes[from_idx]
         
-        if to_tube.is_empty:
+        if would_complete_tube(state, from_idx, to_idx):
             priority_1.append((from_idx, to_idx))
-        elif would_complete_tube(state, from_idx, to_idx):
-            priority_2.append((from_idx, to_idx))
         elif to_tube.top_color and to_tube.top_color.color == from_tube.top_color.color:
+            priority_2.append((from_idx, to_idx))
+        elif to_tube.is_empty and from_tube.is_complete:
+            # Moving complete tube to empty is wasteful unless necessary
+            # But keep it as lower priority option
             priority_3.append((from_idx, to_idx))
-        else:
+        elif to_tube.is_empty:
             priority_4.append((from_idx, to_idx))
+        else:
+            priority_5.append((from_idx, to_idx))
     
-    return priority_1 + priority_2 + priority_3 + priority_4
+    return priority_1 + priority_2 + priority_3 + priority_4 + priority_5
 
 
 def would_complete_tube(state: PuzzleState, from_idx: int, to_idx: int) -> bool:
-    """Check if a move would complete the destination tube"""
-    new_state = state.apply_move(from_idx, to_idx)
-    return new_state.tubes[to_idx].is_complete
+    """
+    Check if a move would complete the destination tube
+    Optimized to avoid expensive state copying
+    """
+    from_tube = state.tubes[from_idx]
+    to_tube = state.tubes[to_idx]
+    
+    from_color = from_tube.top_color
+    if not from_color:
+        return False
+    
+    # If destination is empty, pouring won't complete it (unless it fills it completely)
+    if to_tube.is_empty:
+        # Would only complete if the pour fills the entire tube with one color
+        return from_color.height == to_tube.capacity_px
+    
+    # If destination already has content, check if adding would complete it
+    to_color = to_tube.top_color
+    if not to_color or to_color.color != from_color.color:
+        return False  # Different colors, won't complete
+    
+    # Check if destination would contain only one color after the pour
+    # This means all non-empty segments in destination must be the same color as what we're pouring
+    non_empty = [seg for seg in to_tube.segments if seg.color != 'empty']
+    if not all(seg.color == from_color.color for seg in non_empty):
+        return False
+    
+    # Check if the combined amount would fill the tube completely
+    total_height = sum(seg.height for seg in non_empty) + from_color.height
+    return total_height == to_tube.capacity_px
 
 
 def compute_execution_plan(moves: List[Tuple[int, int]], animation_delay: float = 1.3) -> List[Tuple[int, int, float]]:

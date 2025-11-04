@@ -114,7 +114,7 @@ def solve_puzzle():
     
     # Solve using backtracking
     print("Computing solution using backtracking...")
-    solution = solve(state, max_depth=200)
+    solution = solve(state, max_depth=200, verbose=True)
     
     if solution is None:
         print("\n❌ No solution found! Puzzle may be unsolvable.")

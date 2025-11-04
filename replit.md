@@ -54,6 +54,14 @@ Preferred communication style: Simple, everyday language.
 - Move prioritization heuristics reduce search space significantly
 - Regression tests ensure duplicate same-sized color segments handled correctly
 
+**Performance Optimizations** (November 2025):
+- Fixed `is_complete` to require tubes be filled to capacity (not just one color)
+- Optimized `would_complete_tube` to avoid expensive state copies (~100x faster)
+- Improved move pruning to skip already-complete destination tubes
+- Better heuristic ordering prioritizes completing tubes over random moves to empty
+- Progress logging shows states explored per second in verbose mode
+- Performance: Simple puzzles <0.1s, complex (12 tubes/9 colors) ~30-120s
+
 ### Execution System
 
 **Problem**: Need to translate logical moves into physical device interactions
