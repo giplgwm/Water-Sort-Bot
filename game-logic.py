@@ -1,205 +1,169 @@
-import sys
-from color_detection import analyze_all_tubes
-from adb import adb_tap
-from time import sleep
-from adb import capture_screen, has_devices
+"""
+Water Sort Bot - Game Logic
+Uses backtracking solver to compute all moves before executing
+"""
 import subprocess
+from time import sleep
+from adb import adb_tap, capture_screen, has_devices
+from color_detection import analyze_all_tubes
+from solver import state_from_tube_analysis, solve_puzzle
 
-def get_tap_position(tube):
-    tap_x = tube['top_color']['scan_x']
-    tap_y = tube['top_color']['start_y'] + (tube['top_color']['height'] / 2)
-    return (tap_x, tap_y)
-        
-def get_tubes_of_most_frequent_color(working_tubes, available_pouring_colors):
-    colors = {}
-    tubes_to_pour = []
-    for tube in working_tubes:
-            pour_color = tube['pour_color']['color']
 
-            if pour_color in available_pouring_colors or 'empty' in available_pouring_colors:
-                if pour_color in colors:
-                    colors[pour_color] += tube['pour_color']['height']
-                else:
-                    colors[pour_color] = tube['pour_color']['height']
-    if colors:
-        most_color = max(colors, key=colors.get)
+def get_tube_center_position(tube_info: dict) -> tuple:
+    """
+    Get the center tap position for a tube
+    
+    Args:
+        tube_info: Tube information from analyze_all_tubes
+    
+    Returns:
+        (x, y) coordinates for tapping
+    """
+    x = tube_info['tube_position'][0]
+    y = tube_info['tube_position'][1]
+    
+    if len(tube_info['colors']) > 0:
+        first_color = tube_info['colors'][0]
+        tap_x = first_color['scan_x']
+        tap_y = first_color['start_y'] + (first_color['height'] // 2)
     else:
-        return []
-    for tube in working_tubes:
-        if tube['pour_color']['color'] == most_color:
-            tubes_to_pour.append(tube)
-    return tubes_to_pour
+        tap_x = x + 75
+        tap_y = y + 270
+    
+    return (tap_x, tap_y)
+
+
+def execute_move(all_tube_colors: list, from_idx: int, to_idx: int, delay: float = 0.3):
+    """
+    Execute a single move by tapping two tubes
+    
+    Args:
+        all_tube_colors: Tube analysis data
+        from_idx: Index of tube to pour from
+        to_idx: Index of tube to pour into
+        delay: Delay between taps in seconds
+    """
+    from_tube = all_tube_colors[from_idx]
+    to_tube = all_tube_colors[to_idx]
+    
+    from_pos = get_tube_center_position(from_tube)
+    to_pos = get_tube_center_position(to_tube)
+    
+    print(f"  Move: Tube {from_idx + 1} → Tube {to_idx + 1}")
+    
+    adb_tap(*from_pos)
+    sleep(delay)
+    adb_tap(*to_pos)
+    sleep(delay)
+
 
 def next_level():
+    """Tap to proceed to next level"""
+    print("Level complete! Proceeding to next level...")
+    sleep(2)
     adb_tap(456, 1775)
-    print("tap")
+    sleep(1)
 
 
-def get_tubes_to_tap(all_tubes):
-    tubes_to_tap = []
-    colors_checked = {}
-    tubes_being_poured_into = []
-    for idx, tube in enumerate(all_tubes):
-        if tube['colors'][0]['color'] != 'empty' and len(tube['colors']) < 2:
-            continue
-        if tube['colors'][0] == 'empty' and len(tube['colors']) == 2:
-            continue
-        t_color = tube['pour_color']['color'] 
-        if t_color == 'empty':
-            continue
-        if t_color in colors_checked:
-            continue
-        if tube in tubes_being_poured_into:
-            continue # We cant pour a tube that is about to be poured in.
-        
-        alike_colored_tubes = [tube, ]
-        max_empty_space_tube = tube
-
-        for idx2, tube2 in enumerate(all_tubes):
-            if idx == idx2:
-                continue
-            if tube2 in tubes_being_poured_into:
-                continue
-
-            t2_color = tube2['pour_color']['color']
-            t2_empty_space = int(tube2['colors'][0]['height']) if tube2['colors'][0]['color'] == 'empty' else 0
-
-            current_empty_space = int(max_empty_space_tube['colors'][0]['height'] if tube['colors'][0]['color'] == 'empty' else 0)
-            if t2_color == t_color or t2_color == 'empty':
-                alike_colored_tubes.append(tube2)
-                if t2_empty_space > current_empty_space:
-                    max_empty_space_tube = tube2
-
-        if len(alike_colored_tubes) == 1:
-            continue
-
-        if max_empty_space_tube in alike_colored_tubes:
-            alike_colored_tubes.remove(max_empty_space_tube) # We dont want to pour the tube into itself...
-        tubes_being_poured_into.append(max_empty_space_tube)
-
-
-        available_space = int(max_empty_space_tube['colors'][0]['height']) if max_empty_space_tube['colors'][0]['color'] == 'empty' else 0
-        sorted_tubes = sorted(alike_colored_tubes, key=lambda tube: tube['pour_color']['height']) # want to sort based on tube['pour_color']['height']
-
-        if len(sorted_tubes) == 1:
-            if available_space > sorted_tubes[0]['pour_color']['height']:
-                tubes_to_tap.append((sorted_tubes[0], max_empty_space_tube))
-                continue
-            else:
-                tubes_to_tap.append((max_empty_space_tube, sorted_tubes[0]))
-                continue
+def play_level():
+    """
+    Play a single level of Water Sort
+    
+    Returns:
+        True if level was solved, False if failed
+    """
+    print("\n" + "=" * 60)
+    print("Capturing screenshot and analyzing puzzle...")
+    
+    image = capture_screen()
+    all_tube_colors, img = analyze_all_tubes(image, scan_offset=40)
+    
+    print(f"Found {len(all_tube_colors)} tubes")
+    
+    print("\nConverting to puzzle state...")
+    puzzle_state = state_from_tube_analysis(all_tube_colors)
+    
+    print("\nInitial state:")
+    for i, tube in enumerate(puzzle_state.tubes):
+        print(f"  Tube {i + 1}: {tube if tube else '(empty)'}")
+    
+    if puzzle_state.is_solved():
+        print("\nPuzzle is already solved!")
+        next_level()
+        return True
+    
+    print("\nSolving puzzle with backtracking...")
+    solution = solve_puzzle(puzzle_state, max_capacity=4, max_moves=200)
+    
+    if solution is None:
+        print("❌ No solution found! This puzzle may be unsolvable.")
+        return False
+    
+    print(f"\n✓ Solution found! {len(solution)} moves required.")
+    print("\nExecuting moves:")
+    
+    for i, (from_idx, to_idx) in enumerate(solution, 1):
+        print(f"Step {i}/{len(solution)}:", end=" ")
+        execute_move(all_tube_colors, from_idx, to_idx, delay=0.3)
+    
+    print("\n✓ All moves executed!")
+    next_level()
+    return True
 
 
-        for x in sorted_tubes:
-            if available_space >= x['pour_color']['height']:
-                tubes_to_tap.append((x, max_empty_space_tube))
-                print(f"pouring tube {x['tube_index']} into {max_empty_space_tube['tube_index']}")
-
-        colors_checked[t_color] = 1
-    return tubes_to_tap
+def main():
+    """Main game loop"""
+    print("=" * 60)
+    print("Water Sort Bot - Starting")
+    print("=" * 60)
+    
+    if not has_devices():
+        print("\n❌ No device connected!")
+        print("Please connect an Android device with USB debugging enabled.")
+        return
+    
+    print("\n✓ Device connected")
+    print("\nStarting screen recording...")
+    
+    try:
+        screenrecord_proc = subprocess.Popen(
+            ["adb", "shell", "screenrecord", "/sdcard/bot_recording.mp4"]
+        )
+    except Exception as e:
+        print(f"Warning: Could not start screen recording: {e}")
+        screenrecord_proc = None
+    
+    print("\nStarting game loop...")
+    print("Press Ctrl+C to stop\n")
+    
+    level_count = 0
+    
+    try:
+        while True:
+            level_count += 1
+            print(f"\n{'=' * 60}")
+            print(f"Level {level_count}")
             
-
-
-
-
+            success = play_level()
+            
+            if not success:
+                print("\nFailed to solve level. Stopping.")
+                break
+            
+            sleep(1)
+    
+    except KeyboardInterrupt:
+        print("\n\n{'=' * 60}")
+        print("Stopped by user")
+        print(f"Completed {level_count - 1} levels")
+    
+    finally:
+        if screenrecord_proc:
+            screenrecord_proc.terminate()
+            print("Screen recording stopped")
         
+        print("=" * 60)
 
 
-# Example usage
 if __name__ == "__main__":
-    # while not has_devices():
-    #     print('waiting for device...')
-    #     sleep(5)
-    screenrecord_proc = subprocess.Popen(
-        ["adb", "shell", "screenrecord", "/sdcard/bot_recording.mp4"]
-    )
-    playing = True
-    while playing:
-        image = capture_screen()
-
-        #Level begins, we need to first analyze all tubes to get the lists of colors and empty spaces
-        all_tube_colors, img = analyze_all_tubes(image, scan_offset=40)
-
-        tubes_to_tap = get_tubes_to_tap(all_tube_colors)
-
-        if len(tubes_to_tap) > 0:
-            for x in tubes_to_tap:
-                adb_tap(*get_tap_position(x[0]))
-                adb_tap(*get_tap_position(x[1]))
-        else:
-            next_level()
-
-        
-
-    #     #Now that we know where everything is, we can designate 'pour tubes' (ones that are empty or contain 1 color) and 'working tubes' (tubes we need to get down to 1 color)
-    #     working_tubes, pour_tubes = [], []
-
-    #     for tube in all_tube_colors:
-    #         if len(tube['colors']) == 1 or len(tube['colors']) == 2 and tube['top_color']['color'] == 'empty':
-    #             pour_tubes.append(tube)
-    #         else:
-    #             working_tubes.append(tube)
-
-
-    #     #Get a list of all colors that have a pour tube we can use so we don't mix colors up
-    #     available_pouring_colors = [tube['colors'][-1]['color'] for tube in pour_tubes]
-    #     #Now we can follow a simple pattern of scanning the working tubes for the largest color that we can put into a pour tube!
-    #     tubes_to_pour = get_tubes_of_most_frequent_color(working_tubes, available_pouring_colors)
-
-    #     if len(tubes_to_pour) == 0:
-    #         # If we have no working tubes to pour, its time to combine any alike pour-tubes
-    #         for x in pour_tubes:
-    #             if len(x['colors'])==1 and x['top_color']['color'] == 'empty':
-    #                 continue
-    #             for y in pour_tubes:
-    #                 if len(y['colors'])==1 and y['top_color']['color'] == 'empty':
-    #                     continue
-    #                 if x['tube_index'] == y['tube_index']:
-    #                     continue
-    #                 if x['colors'][-1]['color'] == y['colors'][-1]['color']:
-    #                     tubes_to_pour = x
-
-    #     if len(tubes_to_pour) == 0:
-    #         # If we still haven't found one to pour, lets try combining 2 working tubes!
-    #         for x in working_tubes:
-    #             for y in working_tubes:
-    #                 if x['tube_index'] == y['tube_index']:
-    #                     continue
-    #                 if y['top_color']['color'] != "empty":
-    #                     continue   
-    #                 if x['pour_color']['color'] == y['colors'][1]['color'] and y['colors'][0]['height'] >= x['pour_color']['height'] - 10: # margin of error
-    #                     tubes_to_pour = [x,]
-    #                     pour_tubes.append(y)
-    #                     break
-    #             if len(tubes_to_pour) != 0:
-    #                 break
-
-    #     if len(tubes_to_pour) == 0:
-    #         next_level()
-    #         continue
-
-        
-    #     for x in tubes_to_pour:
-    #         if x in pour_tubes:
-    #             pour_tubes.remove(x)
-
-
-    #     #Now that we have the tube we want to pour, we need the tube to pour it into. we know 1 exists but not where! 
-    #     color_to_pour = tubes_to_pour[0]['pour_color']['color']
-    #     tube_to_pour_in = None
-    #     for tube in pour_tubes:
-    #         if tube['top_color']['color'] == color_to_pour or tube['colors'][-1]['color'] == 'empty' or (tube['colors'][0]['color'] == 'empty' and tube['colors'][1]['color'] == color_to_pour):
-    #             if tube_to_pour_in is None or tube['top_color']['height'] > tube_to_pour_in['top_color']['height']: #Lets take the largest empty space we find
-    #                 tube_to_pour_in = tube
-
-    #     # Now we just tap on both tubes, and repeat!
-    #     tube_1_pos_list = [get_tap_position(tube) for tube in tubes_to_pour]
-    #     tube_2_tap_pos = get_tap_position(tube_to_pour_in)
-
-    #     for pos in tube_1_pos_list:
-    #         adb_tap(*pos)
-    #         adb_tap(*tube_2_tap_pos)
-    #     sleep(1.3)
-    # sleep(1)
-
-    # print("done?")
+    main()
