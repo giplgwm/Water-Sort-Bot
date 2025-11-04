@@ -25,12 +25,27 @@ class PuzzleState:
         return PuzzleState(deepcopy(self.tubes))
     
     def is_solved(self) -> bool:
-        """Check if puzzle is solved (all tubes empty or single color)"""
-        for tube in self.tubes:
+        """
+        Check if puzzle is solved.
+        A puzzle is solved when each color appears in at most one tube,
+        and all tubes are either empty or contain only one color.
+        """
+        color_locations = {}
+        
+        for tube_idx, tube in enumerate(self.tubes):
             if len(tube) == 0:
                 continue
+            
+            # Check if tube has mixed colors
             if len(set(tube)) > 1:
                 return False
+            
+            # Check if this color appears in multiple tubes
+            color = tube[0]
+            if color in color_locations:
+                return False  # Same color in multiple tubes = not solved
+            color_locations[color] = tube_idx
+        
         return True
     
     def can_pour(self, from_idx: int, to_idx: int, max_capacity: int = 4) -> bool:
@@ -183,6 +198,15 @@ def solve_puzzle(initial_state: PuzzleState, max_capacity: int = 4, max_moves: i
             
             pour_color = from_tube[-1]
             
+            # Deprioritize moving already-complete tubes (full + single color + only tube with that color)
+            if len(from_tube) == max_capacity and len(set(from_tube)) == 1:
+                # Check if this color exists in any other tube
+                color_exists_elsewhere = any(
+                    pour_color in tube for idx, tube in enumerate(state.tubes) if idx != from_idx
+                )
+                if not color_exists_elsewhere:
+                    return 98  # Very low priority, but not impossible
+            
             # Count how many we'll pour
             pour_count = 0
             for i in range(len(from_tube) - 1, -1, -1):
@@ -191,16 +215,16 @@ def solve_puzzle(initial_state: PuzzleState, max_capacity: int = 4, max_moves: i
                 else:
                     break
             
-            # Priority 1: Moves that complete a tube
+            # Priority 0: Moves that complete a tube
             after_pour_count = len(to_tube) + pour_count
             if after_pour_count == max_capacity and (len(to_tube) == 0 or to_tube[-1] == pour_color):
                 return 0
             
-            # Priority 2: Pour into non-empty matching color
+            # Priority 1: Pour into non-empty matching color
             if len(to_tube) > 0 and to_tube[-1] == pour_color:
                 return 1
             
-            # Priority 3: Pour into empty tube
+            # Priority 2: Pour into empty tube
             if len(to_tube) == 0:
                 return 2
             

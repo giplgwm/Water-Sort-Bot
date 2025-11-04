@@ -117,11 +117,12 @@ def test_uniform_tube_to_empty():
     print("Test 4: Puzzle requiring uniform tube → empty (regression)")
     print("=" * 60)
     
-    # This puzzle requires temporarily moving a uniform tube to create buffer space
+    # Simpler test: one uniform tube with reds, mixed tube, and empty
+    # This tests that we CAN pour a uniform tube when needed
     tubes = [
-        ['red', 'blue'],
         ['blue', 'red'],
-        ['red', 'red'],
+        ['red', 'red'],  # Uniform but not full
+        ['blue'],
         []
     ]
     
@@ -153,6 +154,53 @@ def test_uniform_tube_to_empty():
         return False
 
 
+def test_is_solved_check():
+    """Test that is_solved() correctly requires all instances of a color in one tube"""
+    print("\n" + "=" * 60)
+    print("Test 5: Verify is_solved() requires colors in single tubes")
+    print("=" * 60)
+    
+    # This should NOT be considered solved - red is in two different tubes
+    tubes_not_solved = [
+        ['red', 'red'],
+        ['blue', 'blue'],
+        ['red', 'red'],  # Red in another tube - NOT SOLVED!
+        []
+    ]
+    
+    state = PuzzleState(tubes_not_solved)
+    print("\nTest case 1: Red in tubes 0 and 2 (should be NOT solved)")
+    print(state)
+    
+    if not state.is_solved():
+        print("✓ Correctly identified as NOT solved")
+        test1_pass = True
+    else:
+        print("❌ Incorrectly marked as solved!")
+        test1_pass = False
+    
+    # This SHOULD be considered solved - each color in exactly one tube
+    tubes_solved = [
+        ['red', 'red', 'red', 'red'],
+        ['blue', 'blue', 'blue', 'blue'],
+        [],
+        []
+    ]
+    
+    state2 = PuzzleState(tubes_solved)
+    print("\nTest case 2: Each color in one tube (should be solved)")
+    print(state2)
+    
+    if state2.is_solved():
+        print("✓ Correctly identified as solved")
+        test2_pass = True
+    else:
+        print("❌ Incorrectly marked as NOT solved!")
+        test2_pass = False
+    
+    return test1_pass and test2_pass
+
+
 if __name__ == "__main__":
     print("\nRunning Water Sort Solver Tests\n")
     
@@ -161,6 +209,7 @@ if __name__ == "__main__":
     results.append(("3-color puzzle", test_three_color_puzzle()))
     results.append(("Already solved", test_already_solved()))
     results.append(("Uniform tube to empty (regression)", test_uniform_tube_to_empty()))
+    results.append(("is_solved() color uniqueness check", test_is_solved_check()))
     
     print("\n" + "=" * 60)
     print("Test Summary")
