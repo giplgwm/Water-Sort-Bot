@@ -93,14 +93,27 @@ class PuzzleState:
             # Extract color segments from detection
             segments = []
             
-            # Calculate total capacity (we'll use the sum of all segment heights)
-            capacity = sum(c['height'] for c in tube_data['colors'])
+            # Use the actual tube height as capacity (from tube detection)
+            # This is critical - we can't use sum of detected segments because
+            # that ignores empty space!
+            capacity = tube_data['tube_height']
             
             # Convert detection format to ColorSegment
             for color_info in tube_data['colors']:
                 segments.append(ColorSegment(
                     color=color_info['color'],
                     height=color_info['height']
+                ))
+            
+            # Calculate empty space: capacity minus sum of detected segments
+            filled_height = sum(seg.height for seg in segments)
+            empty_space = capacity - filled_height
+            
+            # Add empty segment if there's space left
+            if empty_space > 0:
+                segments.append(ColorSegment(
+                    color='empty',
+                    height=empty_space
                 ))
             
             tubes.append(TubeState(
@@ -354,7 +367,7 @@ def prioritize_moves(state: PuzzleState, moves: List[Tuple[int, int]]) -> List[T
         
         if would_complete_tube(state, from_idx, to_idx):
             priority_1.append((from_idx, to_idx))
-        elif to_tube.top_color and to_tube.top_color.color == from_tube.top_color.color:
+        elif to_tube.top_color and from_tube.top_color and to_tube.top_color.color == from_tube.top_color.color:
             priority_2.append((from_idx, to_idx))
         elif to_tube.is_empty and from_tube.is_complete:
             # Moving complete tube to empty is wasteful unless necessary

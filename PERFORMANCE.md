@@ -1,5 +1,20 @@
 # Solver Performance Optimizations
 
+## Critical Bug Fixes
+
+### **CRITICAL: Fixed Empty Space Tracking** 🐛
+**Problem**: `from_detection()` calculated tube capacity as sum of detected segments only, ignoring empty space at the top of tubes. This caused the solver to think tubes were full when they actually had room.
+
+**Example**: A tube with 200px of liquid but 300px empty space would have capacity set to 200px instead of 500px. The solver would reject all pours into this tube!
+
+**Fix**: 
+1. Pass actual `tube_height` from tube detection through to solver
+2. Use `tube_height` as the true capacity
+3. Calculate empty space: `capacity - sum(detected_segments)`
+4. Add explicit `empty` segment to represent available space
+
+**Impact**: Solver can now correctly determine what will fit in each tube ✓
+
 ## Optimizations Implemented
 
 ### 1. **Fixed Critical `is_complete` Bug**

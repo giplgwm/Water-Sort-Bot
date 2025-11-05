@@ -151,6 +151,7 @@ def analyze_all_tubes(image_path, scan_offset=30):
             'tube_index':
             i + 1,
             'tube_position': (tube['x'], tube['y']),
+            'tube_height': tube['height'],  # CRITICAL: Actual tube capacity in pixels
             'colors':
             significant_colors,
             'top_color':

@@ -54,6 +54,9 @@ Preferred communication style: Simple, everyday language.
 - Move prioritization heuristics reduce search space significantly
 - Regression tests ensure duplicate same-sized color segments handled correctly
 
+**Critical Bug Fixes** (November 2025):
+- **Empty Space Tracking**: Fixed `from_detection()` to use actual tube height from detection instead of sum of segments. Now properly tracks empty space in partially-filled tubes. Without this, solver attempted pours into "full" tubes that actually had room.
+
 **Performance Optimizations** (November 2025):
 - Fixed `is_complete` to require tubes be filled to capacity (not just one color)
 - Optimized `would_complete_tube` to avoid expensive state copies (~100x faster)
